@@ -55,6 +55,9 @@
         console.error("메시지 처리 중 오류:", e);
       }
     });
+
+    window.ReactNativeWebView?.postMessage(JSON.stringify({ ready: true }));
+
   </script>
 </body>
 </html>
