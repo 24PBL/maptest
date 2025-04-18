@@ -13,28 +13,31 @@
   <script>
     var mapContainer = document.getElementById('map');
     var mapOption = {
-      center: new kakao.maps.LatLng(37.5665, 126.9780), // 기본 중심
+      center: new kakao.maps.LatLng(37.5665, 126.9780),
       level: 5
     };
     var map = new kakao.maps.Map(mapContainer, mapOption);
     var marker = null;
     var geocoder = new kakao.maps.services.Geocoder();
-
+  
     function setCenterAndMarkers(centerAddress, markerAddresses = []) {
-      // 중심 이동
+      console.log("📍 중심 주소 검색 요청:", centerAddress);
       geocoder.addressSearch(centerAddress, function(result, status) {
+        console.log("🔍 중심 검색 결과:", result, "상태:", status);
         if (status === kakao.maps.services.Status.OK) {
           const centerCoords = new kakao.maps.LatLng(result[0].y, result[0].x);
           map.setCenter(centerCoords);
           if (marker) marker.setMap(null);
           marker = new kakao.maps.Marker({ map: map, position: centerCoords });
-
-          // 즐겨찾기 마커 추가
+  
           markerAddresses.forEach(addr => {
+            console.log("🎯 마커 주소 검색:", addr);
             geocoder.addressSearch(addr, function(res, stat) {
               if (stat === kakao.maps.services.Status.OK) {
                 const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
                 new kakao.maps.Marker({ map: map, position: coords });
+              } else {
+                console.error("❌ 마커 검색 실패:", addr);
               }
             });
           });
@@ -43,22 +46,29 @@
         }
       });
     }
-
-    // React Native → WebView 메시지 받기
-    window.addEventListener('message', function(event) {
+  
+    // ✅ 메시지 수신 방식 보강
+    function handleMessage(event) {
       try {
+        console.log("📩 메시지 수신:", event.data);
         const data = JSON.parse(event.data);
         if (data.center) {
           setCenterAndMarkers(data.center, data.markers || []);
         }
       } catch (e) {
-        console.error("메시지 처리 중 오류:", e);
+        console.error("❌ 메시지 처리 오류:", e);
       }
-    });
-
+    }
+  
+    // 플랫폼 호환성 대응
+    window.addEventListener('message', handleMessage);  // 일부 Android
+    document.addEventListener('message', handleMessage); // 일부 iOS
+    window.onmessage = handleMessage; // 보조용
+  
+    // React Native에 준비 완료 알림
     window.ReactNativeWebView?.postMessage(JSON.stringify({ ready: true }));
-    console.log('ready, sent')
-
+    console.log("✅ ready 메시지 전송됨");
   </script>
+  
 </body>
 </html>
