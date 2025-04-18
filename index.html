@@ -13,32 +13,33 @@
   <script>
     var mapContainer = document.getElementById('map');
     var mapOption = {
-      center: new kakao.maps.LatLng(37.5665, 126.9780), // 기본 위치 (서울시청)
+      center: new kakao.maps.LatLng(37.5665, 126.9780), // 기본 중심
       level: 5
     };
-
     var map = new kakao.maps.Map(mapContainer, mapOption);
-    var marker = new kakao.maps.Marker({
-      position: map.getCenter(),
-      map: map
-    });
-
-    // Geocoder 객체 생성
+    var marker = null;
     var geocoder = new kakao.maps.services.Geocoder();
 
-    // 주소 검색 함수
-    function searchAndMove(address) {
-      geocoder.addressSearch(address, function(result, status) {
+    function setCenterAndMarkers(centerAddress, markerAddresses = []) {
+      // 중심 이동
+      geocoder.addressSearch(centerAddress, function(result, status) {
         if (status === kakao.maps.services.Status.OK) {
-          var coords = new kakao.maps.LatLng(result[0].y, result[0].x);
-          map.setCenter(coords);
-          marker.setMap(null); // 기존 마커 삭제
-          marker = new kakao.maps.Marker({
-            map: map,
-            position: coords
+          const centerCoords = new kakao.maps.LatLng(result[0].y, result[0].x);
+          map.setCenter(centerCoords);
+          if (marker) marker.setMap(null);
+          marker = new kakao.maps.Marker({ map: map, position: centerCoords });
+
+          // 즐겨찾기 마커 추가
+          markerAddresses.forEach(addr => {
+            geocoder.addressSearch(addr, function(res, stat) {
+              if (stat === kakao.maps.services.Status.OK) {
+                const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
+                new kakao.maps.Marker({ map: map, position: coords });
+              }
+            });
           });
         } else {
-          alert("주소를 찾을 수 없습니다: " + address);
+          alert("중심 주소를 찾을 수 없습니다: " + centerAddress);
         }
       });
     }
@@ -46,12 +47,12 @@
     // React Native → WebView 메시지 받기
     window.addEventListener('message', function(event) {
       try {
-        var data = JSON.parse(event.data);
-        if (data.type === 'SEARCH_ADDRESS' && data.address) {
-          searchAndMove(data.address);
+        const data = JSON.parse(event.data);
+        if (data.center) {
+          setCenterAndMarkers(data.center, data.markers || []);
         }
       } catch (e) {
-        console.log("메시지 처리 중 오류:", e);
+        console.error("메시지 처리 중 오류:", e);
       }
     });
   </script>
