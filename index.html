@@ -20,27 +20,32 @@
     var marker = null;
     var geocoder = new kakao.maps.services.Geocoder();
   
-    function setCenterAndMarkers(centerAddress, markerAddresses = []) {
-      geocoder.addressSearch(centerAddress, function (result, status) {
-        if (status === kakao.maps.services.Status.OK) {
-          const centerCoords = new kakao.maps.LatLng(result[0].y, result[0].x);
-          map.setCenter(centerCoords);
-          if (marker) marker.setMap(null);
-          marker = new kakao.maps.Marker({ map: map, position: centerCoords });
-  
-          markerAddresses.forEach(addr => {
-            geocoder.addressSearch(addr, function (res, stat) {
-              if (stat === kakao.maps.services.Status.OK) {
-                const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
-                new kakao.maps.Marker({ map: map, position: coords });
-              }
-            });
-          });
-        } else {
-          alert("중심 주소를 찾을 수 없습니다: " + centerAddress);
-        }
-      });
-    }
+    function setCenterAndMarkers(centerCoordsStr, markerAddresses = []) {
+  // "35.1801,128.1076" 형식을 위도, 경도로 분리
+  const [lat, lng] = centerCoordsStr.split(',').map(Number);
+  if (isNaN(lat) || isNaN(lng)) {
+    alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
+    return;
+  }
+
+  const centerCoords = new kakao.maps.LatLng(lat, lng);
+  map.setCenter(centerCoords);
+
+  // 중심 마커 설정
+  if (marker) marker.setMap(null);
+  marker = new kakao.maps.Marker({ map: map, position: centerCoords });
+
+  // 주소 기반 마커들 설정
+  markerAddresses.forEach(addr => {
+    geocoder.addressSearch(addr, function (res, stat) {
+      if (stat === kakao.maps.services.Status.OK) {
+        const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
+        new kakao.maps.Marker({ map: map, position: coords });
+      }
+    });
+  });
+}
+
   
     // 🔥 핵심: 메시지 리스너를 window에 직접 연결
     document.addEventListener("message", function (event) {
