@@ -3,50 +3,67 @@
 <head>
   <meta charset="utf-8">
   <style>
-    html, body { height: 100%; margin: 0; padding: 0; }
+    html, body { height: 100%; margin: 0; padding: 0; position: relative; }
     #map { width: 100%; height: 100vh; }
+    .zoom-buttons {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+    }
+    .zoom-button {
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 50%;
+    }
   </style>
   <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=aa5c4ca21b29b73b3cbfd8204d7e4628&libraries=services"></script>
 </head>
 <body>
   <div id="map"></div>
+  <div class="zoom-buttons">
+    <button class="zoom-button" id="zoom-in">+</button>
+    <button class="zoom-button" id="zoom-out">-</button>
+  </div>
+
   <script>
     var mapContainer = document.getElementById('map');
     var mapOption = {
-      center: new kakao.maps.LatLng(37.5665, 126.9780),
+      center: new kakao.maps.LatLng(37.5665, 126.9780), // 서울
       level: 5
     };
     var map = new kakao.maps.Map(mapContainer, mapOption);
     var marker = null;
     var geocoder = new kakao.maps.services.Geocoder();
-  
+
     function setCenterAndMarkers(centerCoordsStr, markerAddresses = []) {
-  
-  const [lat, lng] = centerCoordsStr.split(',').map(Number);
-  if (isNaN(lat) || isNaN(lng)) {
-    alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
-    return;
-  }
-
-  const centerCoords = new kakao.maps.LatLng(lat, lng);
-  map.setCenter(centerCoords);
-
-  // 중심 마커 설정
-  if (marker) marker.setMap(null);
-  marker = new kakao.maps.Marker({ map: map, position: centerCoords });
-
-  // 주소 기반 마커들 설정
-  markerAddresses.forEach(addr => {
-    geocoder.addressSearch(addr, function (res, stat) {
-      if (stat === kakao.maps.services.Status.OK) {
-        const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
-        new kakao.maps.Marker({ map: map, position: coords });
+      const [lat, lng] = centerCoordsStr.split(',').map(Number);
+      if (isNaN(lat) || isNaN(lng)) {
+        alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
+        return;
       }
-    });
-  });
-}
 
-  
+      const centerCoords = new kakao.maps.LatLng(lat, lng);
+      map.setCenter(centerCoords);
+
+      // 중심 마커 설정
+      if (marker) marker.setMap(null);
+      marker = new kakao.maps.Marker({ map: map, position: centerCoords });
+
+      // 주소 기반 마커들 설정
+      markerAddresses.forEach(addr => {
+        geocoder.addressSearch(addr, function (res, stat) {
+          if (stat === kakao.maps.services.Status.OK) {
+            const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
+            new kakao.maps.Marker({ map: map, position: coords });
+          }
+        });
+      });
+    }
+
     // 🔥 핵심: 메시지 리스너를 window에 직접 연결
     document.addEventListener("message", function (event) {
       try {
@@ -58,11 +75,25 @@
         console.error("document.addEventListener 메시지 처리 중 오류:", e);
       }
     });
-  
+
     // React Native용 WebView 메시지 초기 알림
     window.ReactNativeWebView?.postMessage(JSON.stringify({ ready: true }));
+
+    // 확대 버튼 클릭
+    document.getElementById('zoom-in').addEventListener('click', function() {
+      var currentLevel = map.getLevel();
+      if (currentLevel > 1) { // 최소 수준(1)까지 확대
+        map.setLevel(currentLevel - 1);
+      }
+    });
+
+    // 축소 버튼 클릭
+    document.getElementById('zoom-out').addEventListener('click', function() {
+      var currentLevel = map.getLevel();
+      if (currentLevel < 14) { // 최대 수준(14)까지 축소
+        map.setLevel(currentLevel + 1);
+      }
+    });
   </script>
-  
-  
 </body>
 </html>
