@@ -2,7 +2,6 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=10, user-scalable=yes"> <!-- 확대/축소 기능 활성화 -->
   <style>
     html, body { height: 100%; margin: 0; padding: 0; }
     #map { width: 100%; height: 100vh; }
@@ -15,38 +14,39 @@
     var mapContainer = document.getElementById('map');
     var mapOption = {
       center: new kakao.maps.LatLng(37.5665, 126.9780),
-      level: 3,  // 확대된 지도
-      zoomControl: true  // 확대/축소 버튼 활성화
+      level: 5
     };
     var map = new kakao.maps.Map(mapContainer, mapOption);
     var marker = null;
     var geocoder = new kakao.maps.services.Geocoder();
   
     function setCenterAndMarkers(centerCoordsStr, markerAddresses = []) {
-      const [lat, lng] = centerCoordsStr.split(',').map(Number);
-      if (isNaN(lat) || isNaN(lng)) {
-        alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
-        return;
+  
+  const [lat, lng] = centerCoordsStr.split(',').map(Number);
+  if (isNaN(lat) || isNaN(lng)) {
+    alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
+    return;
+  }
+
+  const centerCoords = new kakao.maps.LatLng(lat, lng);
+  map.setCenter(centerCoords);
+
+  // 중심 마커 설정
+  if (marker) marker.setMap(null);
+  marker = new kakao.maps.Marker({ map: map, position: centerCoords });
+
+  // 주소 기반 마커들 설정
+  markerAddresses.forEach(addr => {
+    geocoder.addressSearch(addr, function (res, stat) {
+      if (stat === kakao.maps.services.Status.OK) {
+        const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
+        new kakao.maps.Marker({ map: map, position: coords });
       }
+    });
+  });
+}
 
-      const centerCoords = new kakao.maps.LatLng(lat, lng);
-      map.setCenter(centerCoords);
-
-      // 중심 마커 설정
-      if (marker) marker.setMap(null);
-      marker = new kakao.maps.Marker({ map: map, position: centerCoords });
-
-      // 주소 기반 마커들 설정
-      markerAddresses.forEach(addr => {
-        geocoder.addressSearch(addr, function (res, stat) {
-          if (stat === kakao.maps.services.Status.OK) {
-            const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
-            new kakao.maps.Marker({ map: map, position: coords });
-          }
-        });
-      });
-    }
-
+  
     // 🔥 핵심: 메시지 리스너를 window에 직접 연결
     document.addEventListener("message", function (event) {
       try {
@@ -62,5 +62,7 @@
     // React Native용 WebView 메시지 초기 알림
     window.ReactNativeWebView?.postMessage(JSON.stringify({ ready: true }));
   </script>
+  
+  
 </body>
 </html>
