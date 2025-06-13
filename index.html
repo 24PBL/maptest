@@ -46,54 +46,87 @@
   <script>
     var mapContainer = document.getElementById('map');
     var mapOption = {
-      center: new kakao.maps.LatLng(37.5665, 126.9780), // 서울
-      level: 5
+      center: new kakao.maps.LatLng(37.5665, 126.9780), // 초기 중심 좌표 (서울)
+      level: 5 // 초기 확대 레벨
     };
     var map = new kakao.maps.Map(mapContainer, mapOption);
-    var marker = null;
-    var geocoder = new kakao.maps.services.Geocoder();
+    var marker = null; // 중심 마커 (현재 위치)
+    var geocoder = new kakao.maps.services.Geocoder(); // 주소-좌표 변환 객체
+
+    // 빨간색 마커 이미지 설정
+    // 실제 사용할 빨간색 마커 이미지의 URL로 변경해주세요.
+    // 예시 URL은 카카오 지도 API 문서에서 제공하는 이미지입니다.
+    var redMarkerImageUrl = 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_red.png';
+    var markerImageSize = new kakao.maps.Size(64, 69); // 마커 이미지의 크기
+    // 마커 이미지의 옵션 (예: 마커의 기준점 - 이미지 하단 중앙)
+    var markerImageOption = { offset: new kakao.maps.Point(27, 69) };
+
+    // 빨간색 마커 이미지 객체 생성
+    var redMarkerImage = new kakao.maps.MarkerImage(redMarkerImageUrl, markerImageSize, markerImageOption);
+
 
     function setCenterAndMarkers(centerCoordsStr, markerAddresses = []) {
       const [lat, lng] = centerCoordsStr.split(',').map(Number);
       if (isNaN(lat) || isNaN(lng)) {
-        alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr);
+        console.error("유효하지 않은 좌표 형식입니다:", centerCoordsStr);
+        // alert("유효하지 않은 좌표 형식입니다: " + centerCoordsStr); // alert는 WebView에서 사용자 경험을 해칠 수 있어 console.error로 변경했습니다.
         return;
       }
 
       const centerCoords = new kakao.maps.LatLng(lat, lng);
-      map.setCenter(centerCoords);
+      map.setCenter(centerCoords); // 지도의 중심을 현재 위치로 이동
 
-      // 중심 마커 설정
-      if (marker) marker.setMap(null);
-      marker = new kakao.maps.Marker({ map: map, position: centerCoords });
+      // 중심 마커 (현재 위치) 설정 - 빨간색 마커 사용
+      if (marker) marker.setMap(null); // 기존 중심 마커 제거
+      marker = new kakao.maps.Marker({
+        map: map, // 마커를 표시할 지도 객체
+        position: centerCoords, // 마커의 위치 (현재 위치)
+        image: redMarkerImage // 생성한 빨간색 마커 이미지 객체 지정
+      });
 
-      // 주소 기반 마커들 설정
+      // 주소 기반 마커들 설정 (즐겨찾기 또는 검색 결과 등) - 기본 파란색 핀 사용
+      // 만약 이 마커들도 색상 변경을 원하시면 이 부분도 수정해야 합니다.
       markerAddresses.forEach(addr => {
-        geocoder.addressSearch(addr, function (res, stat) {
+        // 주소 유효성 검사 (간단하게 빈 문자열이나 'nan'이 아닌지 확인)
+        if (!addr || String(addr).trim() === '' || String(addr).trim().toLowerCase() === 'nan') {
+            console.warn("유효하지 않은 주소 데이터:", addr);
+            return; // 유효하지 않은 주소는 건너뜁니다.
+        }
+
+        geocoder.addressSearch(String(addr).trim(), function (res, stat) {
           if (stat === kakao.maps.services.Status.OK) {
             const coords = new kakao.maps.LatLng(res[0].y, res[0].x);
-            new kakao.maps.Marker({ map: map, position: coords });
+            new kakao.maps.Marker({ map: map, position: coords }); // 기본 파란색 핀 마커 생성
+          } else {
+            console.error("주소-좌표 변환 실패:", addr, stat);
           }
         });
       });
     }
 
-    // 🔥 핵심: 메시지 리스너를 window에 직접 연결
+    // React Native용 WebView 메시지 리스너
+    // React Native 앱에서 postMessage로 보낸 메시지를 여기서 받습니다.
     document.addEventListener("message", function (event) {
       try {
         const data = JSON.parse(event.data);
+        console.log("웹뷰에서 받은 메시지:", data); // 받은 메시지 로그 출력
+
         if (data.center) {
+          // center와 markers 데이터를 받아 지도 중심 설정 및 마커 표시
           setCenterAndMarkers(data.center, data.markers || []);
+        } else {
+            console.warn("받은 메시지에 center 데이터가 없습니다.");
         }
       } catch (e) {
         console.error("document.addEventListener 메시지 처리 중 오류:", e);
       }
     });
 
-    // React Native용 WebView 메시지 초기 알림
+    // 웹뷰가 로드되고 준비되면 React Native 앱에 알림
+    // window.ReactNativeWebView는 React Native WebView 환경에서만 존재합니다.
     window.ReactNativeWebView?.postMessage(JSON.stringify({ ready: true }));
 
-    // 확대 버튼 클릭
+    // 확대 버튼 클릭 이벤트 핸들러
     document.getElementById('zoom-in').addEventListener('click', function() {
       var currentLevel = map.getLevel();
       if (currentLevel > 1) { // 최소 수준(1)까지 확대
@@ -101,7 +134,7 @@
       }
     });
 
-    // 축소 버튼 클릭
+    // 축소 버튼 클릭 이벤트 핸들러
     document.getElementById('zoom-out').addEventListener('click', function() {
       var currentLevel = map.getLevel();
       if (currentLevel < 14) { // 최대 수준(14)까지 축소
